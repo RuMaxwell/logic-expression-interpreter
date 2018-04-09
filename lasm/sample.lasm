@@ -1,0 +1,25 @@
+; Sample lasm file
+; RES = (xor (andn A B) (not (or C D (not E))))
+; e.g. (xor (andn t f) (not (or f f (not f)))) = (xor t (not (or f f t))) = (xor t (not t)) = t
+;      (xor (andn t f) (not (or f f (not t)))) = f
+
+; Identifier declaration. ? means to be inputed
+mov A ?
+mov B ?
+mov C ?
+mov D ?
+mov E ?
+
+; Bound values to the identifiers from input
+input A B C D E
+
+; a, b, and c are built-in registers
+mov a E
+not a
+or a C D
+not a
+mov b A
+andn b B
+xor a b ; Result in a
+
+print a
