@@ -76,6 +76,8 @@ class interpreter:
                         except IndexError:
                             break
                 elif opr == 'print':
+                    if line[i - 1] == '\n':
+                        print()
                     while True:
                         try:
                             t = next_space(i)
@@ -83,7 +85,7 @@ class interpreter:
                             if iden in self.registers:
                                 print('f' if self.registers[iden] == 0 else 't')
                             elif iden in self.globalvars:
-                                print('f' if self.registers[iden] == 0 else 't')
+                                print('f' if self.globalvars[iden] == 0 else 't')
                             else:
                                 print('Error: unreferenced or improperly used identifier')
                                 return

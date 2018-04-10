@@ -6,8 +6,11 @@
  */
 
 #pragma once
+#ifndef LOGIC_CORE_H
+#define LOGIC_CORE_H
 
 #include "rumdefs.h"
+#include <iostream>
 
 _RUM_BEGIN
 
@@ -18,10 +21,11 @@ enum starter
     FS, TR, NT, AD, OR, REP
 };
 
+typedef unsigned int addr_t;
+
 class LogicItpt
 {
 public:
-    typedef unsigned int addr_t;
 
 //#define DEBUG_TRUE
 #ifdef DEBUG_TRUE
@@ -32,6 +36,9 @@ protected:
     int max_memory;     // The size of the memory
     addr_t* memory;     // Memory that stores stack pointers
 
+    int ptr;
+    void incptr() { ptr++; if (ptr >= max_memory) { std::cerr << "memory overflow" << std::endl; }}
+
     bool started_up;
     bool prefunc_loaded;
 
@@ -40,6 +47,7 @@ public:
     {
         // new will initialize every memory unit to 0 (false)
         memory = new addr_t[max_memory];
+        ptr = 0;
         started_up = false;
         prefunc_loaded = false;
     }
@@ -52,12 +60,12 @@ public:
     // Initialize special pointers
     void startup()
     {
-        /* 0x00000 */ memory[0] = FS; // false
-        /* 0x00001 */ memory[1] = TR; // true
-        /* 0x00002 */ memory[2] = NT; // not A
-        /* 0x00003 */ memory[3] = AD; // and A B
-        /* 0x00004 */ memory[4] = OR; // or A B
-        /* 0x00005 */ memory[5] = REP; // repeat (rep) A
+        /* 0x00000 */ memory[ptr] = FS;  incptr(); // false
+        /* 0x00001 */ memory[ptr] = TR;  incptr(); // true
+        /* 0x00002 */ memory[ptr] = NT;  incptr(); // not A
+        /* 0x00003 */ memory[ptr] = AD;  incptr(); // and A B
+        /* 0x00004 */ memory[ptr] = OR;  incptr(); // or A B
+        /* 0x00005 */ memory[ptr] = REP; incptr(); // repeat (rep) A
         // Program entrance: 0x00006
         started_up = true;
     }
@@ -70,57 +78,56 @@ public:
         {
             startup();
         }
-        int ptr = 6;
         addr_t A = FS;
         addr_t B = FS;
         addr_t C = FS;
         // (xor A B) = (or (and (not A) B) (and A (not B)))
-        /* 0x00006 */ memory[ptr] = OR;               ptr++;
-        /* 0x00007 */ memory[ptr] = ptr + 2;          ptr++; // => 0x00009 (and (not A) B)
-        /* 0x00008 */ memory[ptr] = ptr + 0x12 - 0x8; ptr++; // => 0x00012 (and A (not B))
-        /* 0x00009 */ memory[ptr] = AD;               ptr++;
-        /* 0x0000a */ memory[ptr] = ptr + 2;          ptr++; // => 0x0000c (not A)
-        /* 0x0000b */ memory[ptr] = ptr + 0x10 - 0xb; ptr++; // => 0x00010 (rep B)
-        /* 0x0000c */ memory[ptr] = NT;               ptr++;
-        /* 0x0000d */ memory[ptr] = ptr + 1;          ptr++; // => 0x0000e (rep A)
-        /* 0x0000e */ memory[ptr] = REP;              ptr++;
-        /* 0x0000f */ memory[ptr] = A;                ptr++;
-        /* 0x00010 */ memory[ptr] = REP;              ptr++;
-        /* 0x00011 */ memory[ptr] = B;                ptr++;
-        /* 0x00012 */ memory[ptr] = AD;               ptr++;
-        /* 0x00013 */ memory[ptr] = 0xe;              ptr++; // => 0x0000e (rep A)
-        /* 0x00014 */ memory[ptr] = ptr + 1;          ptr++; // => 0x00015 (not B)
-        /* 0x00015 */ memory[ptr] = NT;               ptr++;
-		/* 0x00016 */ memory[ptr] = 0x10;             ptr++; // => 0x00010 (rep B)
+        /* 0x00006 */ memory[ptr] = OR;               incptr();
+        /* 0x00007 */ memory[ptr] = ptr + 2;          incptr(); // => 0x00009 (and (not A) B)
+        /* 0x00008 */ memory[ptr] = ptr + 0x12 - 0x8; incptr(); // => 0x00012 (and A (not B))
+        /* 0x00009 */ memory[ptr] = AD;               incptr();
+        /* 0x0000a */ memory[ptr] = ptr + 2;          incptr(); // => 0x0000c (not A)
+        /* 0x0000b */ memory[ptr] = ptr + 0x10 - 0xb; incptr(); // => 0x00010 (rep B)
+        /* 0x0000c */ memory[ptr] = NT;               incptr();
+        /* 0x0000d */ memory[ptr] = ptr + 1;          incptr(); // => 0x0000e (rep A)
+        /* 0x0000e */ memory[ptr] = REP;              incptr();
+        /* 0x0000f */ memory[ptr] = A;                incptr();
+        /* 0x00010 */ memory[ptr] = REP;              incptr();
+        /* 0x00011 */ memory[ptr] = B;                incptr();
+        /* 0x00012 */ memory[ptr] = AD;               incptr();
+        /* 0x00013 */ memory[ptr] = 0xe;              incptr(); // => 0x0000e (rep A)
+        /* 0x00014 */ memory[ptr] = ptr + 1;          incptr(); // => 0x00015 (not B)
+        /* 0x00015 */ memory[ptr] = NT;               incptr();
+		/* 0x00016 */ memory[ptr] = 0x10;             incptr(); // => 0x00010 (rep B)
         // (xorn A B) = (not (xor A B))
-        /* 0x00017 */ memory[ptr] = NT;               ptr++;
-        /* 0x00018 */ memory[ptr] = 0x6;              ptr++; // => 0x00006 (xor A B)
+        /* 0x00017 */ memory[ptr] = NT;               incptr();
+        /* 0x00018 */ memory[ptr] = 0x6;              incptr(); // => 0x00006 (xor A B)
         // (andn A B) = (not (and A B))
-        /* 0x00019 */ memory[ptr] = NT;               ptr++;
-        /* 0x0001a */ memory[ptr] = AD;               ptr++;
-        /* 0x0001b */ memory[ptr] = 0xe;              ptr++; // => 0x0000e (rep A)
-        /* 0x0001c */ memory[ptr] = 0x10;             ptr++; // => 0x00010 (rep B)
+        /* 0x00019 */ memory[ptr] = NT;               incptr();
+        /* 0x0001a */ memory[ptr] = AD;               incptr();
+        /* 0x0001b */ memory[ptr] = 0xe;              incptr(); // => 0x0000e (rep A)
+        /* 0x0001c */ memory[ptr] = 0x10;             incptr(); // => 0x00010 (rep B)
         // (orn A B) = (not (or A B))
-        /* 0x0001d */ memory[ptr] = NT;               ptr++;
-        /* 0x0001e */ memory[ptr] = OR;               ptr++;
-        /* 0x0001f */ memory[ptr] = 0xe;              ptr++; // => 0x0000e (rep A)
-        /* 0x00020 */ memory[ptr] = 0x10;             ptr++; // => 0x00010 (rep B)
+        /* 0x0001d */ memory[ptr] = NT;               incptr();
+        /* 0x0001e */ memory[ptr] = OR;               incptr();
+        /* 0x0001f */ memory[ptr] = 0xe;              incptr(); // => 0x0000e (rep A)
+        /* 0x00020 */ memory[ptr] = 0x10;             incptr(); // => 0x00010 (rep B)
         // (and A B C) = (and A (and B C))
-        /* 0x00021 */ memory[ptr] = AD;               ptr++;
-        /* 0x00022 */ memory[ptr] = 0xe;              ptr++; // => 0x00010 (rep A)
-        /* 0x00023 */ memory[ptr] = ptr + 1;          ptr++; // => 0x00024 (and B C)
-        /* 0x00024 */ memory[ptr] = AD;               ptr++;
-        /* 0x00025 */ memory[ptr] = 0x10;             ptr++; // => 0x00010 (rep B)
-        /* 0x00026 */ memory[ptr] = ptr + 1;          ptr++; // => 0x00027 (rep C)
-        /* 0x00027 */ memory[ptr] = REP;              ptr++;
-        /* 0x00028 */ memory[ptr] = C;                ptr++;
+        /* 0x00021 */ memory[ptr] = AD;               incptr();
+        /* 0x00022 */ memory[ptr] = 0xe;              incptr(); // => 0x00010 (rep A)
+        /* 0x00023 */ memory[ptr] = ptr + 1;          incptr(); // => 0x00024 (and B C)
+        /* 0x00024 */ memory[ptr] = AD;               incptr();
+        /* 0x00025 */ memory[ptr] = 0x10;             incptr(); // => 0x00010 (rep B)
+        /* 0x00026 */ memory[ptr] = ptr + 1;          incptr(); // => 0x00027 (rep C)
+        /* 0x00027 */ memory[ptr] = REP;              incptr();
+        /* 0x00028 */ memory[ptr] = C;                incptr();
         // (or A B C) = (or A (or B C))
-        /* 0x00029 */ memory[ptr] = OR;               ptr++;
-        /* 0x0002a */ memory[ptr] = 0xe;              ptr++; // => 0x00010 (rep A)
-        /* 0x0002b */ memory[ptr] = ptr + 1;          ptr++; // => 0x00024 (or B C)
-        /* 0x0002c */ memory[ptr] = OR;               ptr++;
-        /* 0x0002d */ memory[ptr] = 0x10;             ptr++; // => 0x00010 (rep B)
-        /* 0x0002e */ memory[ptr] = 0x27;             ptr++; // => 0x00027 (rep C)
+        /* 0x00029 */ memory[ptr] = OR;               incptr();
+        /* 0x0002a */ memory[ptr] = 0xe;              incptr(); // => 0x00010 (rep A)
+        /* 0x0002b */ memory[ptr] = ptr + 1;          incptr(); // => 0x00024 (or B C)
+        /* 0x0002c */ memory[ptr] = OR;               incptr();
+        /* 0x0002d */ memory[ptr] = 0x10;             incptr(); // => 0x00010 (rep B)
+        /* 0x0002e */ memory[ptr] = 0x27;             incptr(); // => 0x00027 (rep C)
 
         prefunc_loaded = true;
     }
@@ -241,6 +248,66 @@ public:
         return run(in1, in2, in3, 0x29);
     }
 
+    // Write data to a memory unit
+    // Data can only be writen to address >= 6 and <= ptr
+    // Return 1 if ptr++, 0 if ptr remains, -1 if error
+    int memory_write(addr_t data, addr_t address = 0)
+    {
+        if (address == 0)
+        {
+            memory[ptr] = data; incptr();
+            return 1;
+        }
+        else if (address < 6)
+        {
+            std::cerr << "memory access error: write to readonly space" << std::endl;
+            return -1;
+        }
+        else
+        {
+            if (address > ptr)
+            {
+                std::cerr << "memory access error: pointer to space that not been used" << std::endl;
+                return -1;
+            }
+            memory[address] = data;
+            if (address == ptr)
+            {
+                incptr();
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+    }
+
+    addr_t memory_read(addr_t address)
+    {
+        if (address >= max_memory)
+        {
+            std::cerr << "memory access error: pointer to space that not been used" << std::endl;
+            return FS;
+        }
+        return memory[address];
+    }
+
+    addr_t current_ptr()
+    {
+        return ptr;
+    }
+
+    void memory_erase()
+    {
+        if (ptr <= 6)
+        {
+            std::cerr << "memory access error: cannot erase 0x05" << std::endl;
+            return;
+        }
+        memory[ptr] = 0; ptr--;
+    }
+
 protected:
     void clear()
     {
@@ -254,3 +321,5 @@ protected:
 };
 
 _RUM_END
+
+#endif // ! LOGIC_CORE_H

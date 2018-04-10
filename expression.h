@@ -21,6 +21,7 @@ int calculate(const char expr[])
     for (int i = 0; expr[i] != '\0'; i++)
     {
     }
+	return 0;
 }
 
 _RUM_END
